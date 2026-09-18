@@ -14,7 +14,7 @@ sobre un dataset **100 % sintético** generado con semilla fija.
 | 0 | Repo y estructura | listo |
 | 1 | Dataset sintético + esquema SQLite | listo (17 tests) |
 | 2 | Motor CRP + MPS + bucle | listo (37+1 tests) |
-| 3 | API + vistas núcleo | pendiente |
+| 3 | API + vistas núcleo | listo (44 tests + recorrido en navegador) |
 | 4 | MRP + capa IA | pendiente |
 | 5 | Exportación SAP, auditoría, guion | pendiente |
 
@@ -25,6 +25,19 @@ sobre un dataset **100 % sintético** generado con semilla fija.
 - `backend/engine/mps.py`: ajustes de distribución y consolidación.
 - `backend/engine/ciclo.py`: ciclo semanal (capacidad → compartido → decisiones → oficial), roles, versiones y auditoría.
 - Regla de tripulación: las líneas del grupo ceden su holgura a las que se pasan; el excedente restante se convierte en horas extra al ritmo de la línea con más holgura.
+
+## API y front (Fase 3)
+- `backend/app.py` (FastAPI): el rol va en la cabecera `X-Rol`; permisos y estados los aplica el motor
+  (403 sin permiso, 409 estado incorrecto, 400 validación). `/api/simular` es el what-if de solo lectura.
+- `frontend/` (React + Vite): selector de rol, Capacidad (CRP + simulador), Consolidación (MPS), Ciclo y plan, Auditoría.
+- Sin login: el selector de rol basta para el demo; el servidor igual rechaza acciones no permitidas.
+
+### Levantar el demo
+```powershell
+./run.ps1            # crea venv, genera datos, compila el front y sirve todo en http://localhost:8000
+```
+Desarrollo con recarga: `uvicorn backend.app:app --reload` y, en `frontend/`, `npm run dev` (http://localhost:5173).
+Botón «Reiniciar demo» (o `POST /api/demo/reiniciar`) regenera los datos y borra el ciclo.
 
 ## Uso rápido (Fase 1)
 ```bash
