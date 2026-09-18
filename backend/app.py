@@ -6,12 +6,12 @@ from pathlib import Path
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from backend.engine import ciclo as cy
-from backend.engine import datos, ia, mps, mrp, propuestas
+from backend.engine import datos, ia, mps, mrp, propuestas, sap_export
 from backend.engine.crp import Escenario
 from backend.synth.generate import generar
 
@@ -248,6 +248,15 @@ def auditoria(con=Depends(get_con)):
     return [dict(r) for r in con.execute("SELECT * FROM auditoria ORDER BY id DESC")]
 
 
+@app.get("/api/auditoria.csv")
+def auditoria_csv(con=Depends(get_con)):
+    filas = [dict(r) for r in con.execute("SELECT * FROM auditoria ORDER BY id")]
+    cuerpo = sap_export._csv(["ID", "FECHA", "ROL", "ACCION", "ENTIDAD", "DETALLE"],
+                             [[f["id"], f["ts"], f["rol"], f["accion"], f["entidad"], f["detalle"]] for f in filas])
+    return Response(cuerpo.encode("utf-8-sig"), media_type="text/csv; charset=utf-8",
+                    headers={"Content-Disposition": 'attachment; filename="auditoria.csv"'})
+
+
 # ───────────────────────── MRP y capa IA ─────────────────────────
 @app.get("/api/mrp")
 def mrp_run(modo: str = "oficial", con=Depends(get_con)):
@@ -268,6 +277,42 @@ def ia_propuestas(ciclo_id: int, con=Depends(get_con)):
 def ia_decidir(ciclo_id: int, propuesta_id: int, body: DecisionPropuestaIn, con=Depends(get_con), rol: str = Depends(get_rol)):
     cambios = {k: v for k, v in (("cantidad", body.cantidad), ("proveedor_id", body.proveedor_id)) if v is not None}
     return propuestas.decidir_propuesta(con, ciclo_id, rol, propuesta_id, body.decision, body.justificacion, cambios)
+
+
+# ───────────────────────── Salida a SAP ─────────────────────────
+@app.get("/api/ciclo/{ciclo_id}/salida")
+def salida(ciclo_id: int, con=Depends(get_con)):
+    return {**sap_export.estado_salida(con, ciclo_id), "archivos": sap_export.listar(con, ciclo_id)}
+
+
+@app.post("/api/ciclo/{ciclo_id}/exportar/ordenes")
+def exportar_ordenes(ciclo_id: int, con=Depends(get_con), rol: str = Depends(get_rol)):
+    return sap_export.exportar_ordenes(con, ciclo_id, rol)
+
+
+@app.post("/api/ciclo/{ciclo_id}/exportar/compras")
+def exportar_compras(ciclo_id: int, con=Depends(get_con), rol: str = Depends(get_rol)):
+    return sap_export.exportar_compras(con, ciclo_id, rol)
+
+
+@app.get("/api/exportaciones/{export_id}/vista")
+def vista_archivo(export_id: int, con=Depends(get_con)):
+    a = sap_export.obtener(con, export_id)
+    return {"archivo": a["archivo"], "tipo": a["tipo"], "filas": a["filas"], "sha256": a["sha256"],
+            "lineas": a["contenido"].splitlines()[:12]}
+
+
+@app.get("/api/exportaciones/{export_id}/descargar")
+def descargar_archivo(export_id: int, con=Depends(get_con)):
+    a = sap_export.obtener(con, export_id)
+    return Response(a["contenido"].encode("utf-8-sig"), media_type="text/csv; charset=utf-8",
+                    headers={"Content-Disposition": f'attachment; filename="{a["archivo"]}"'})
+
+
+@app.get("/api/ciclo/{ciclo_id}/exportaciones/lote/{lote}.zip")
+def descargar_lote(ciclo_id: int, lote: int, con=Depends(get_con)):
+    return Response(sap_export.zip_del_lote(con, ciclo_id, lote), media_type="application/zip",
+                    headers={"Content-Disposition": f'attachment; filename="lote_{lote}.zip"'})
 
 
 # ───────────────────────── Front compilado (opcional) ─────────────────────────

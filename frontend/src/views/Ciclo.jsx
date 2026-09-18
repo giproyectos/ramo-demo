@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api.js'
-import { Btn, Callout, Card, EstadoPill, Pill, fmt, fmt1, pct } from '../ui.jsx'
+import { Btn, Callout, Card, EstadoPill, Pill, fmt, fmt1, fmt2, pct } from '../ui.jsx'
 
 const PASOS = [
   ['capacidad', 'Lun–mar', 'Capacidad', 'El Planeador de Capacidad calcula el CRP por línea'],
@@ -10,6 +10,7 @@ const PASOS = [
 ]
 const ORIGEN = { crp: 'CRP', mps: 'Consolidación MPS', final: 'Plan oficial' }
 const iguales = (a, b, f) => f(a) === f(b)
+const UNIDADES = [['unidades', 'Unidades'], ['cajas', 'Cajas'], ['toneladas', 'Toneladas'], ['costo', 'Costo (COP)']]
 const cambio = (par, f) => (iguales(par[0], par[1], f) ? f(par[0]) : `${f(par[0])} → ${f(par[1])}`)
 
 export default function Ciclo({ ciclo, accion, puede, nombreRol }) {
@@ -17,7 +18,10 @@ export default function Ciclo({ ciclo, accion, puede, nombreRol }) {
   const [acepta, setAcepta] = useState(false)
   const [cmp, setCmp] = useState({ a: null, b: null })
   const [diff, setDiff] = useState(null)
+  const [unidad, setUnidad] = useState('unidades')
+  const [prods, setProds] = useState({})
 
+  useEffect(() => { api('/necesidad').then((n) => setProds(Object.fromEntries(n.productos.map((p) => [p.producto_id, p])))) }, [])
   const id = ciclo?.ciclo?.id
   const versiones = ciclo?.versiones || []
   useEffect(() => {
@@ -41,6 +45,16 @@ export default function Ciclo({ ciclo, accion, puede, nombreRol }) {
     : pendientes ? 'Hay ajustes propuestos sin decidir'
     : ciclo.desactualizada ? 'La última versión no incluye todos los ajustes aprobados: hay que reconsolidar'
     : horas > 1e-9 && !acepta ? 'Acepta explícitamente las horas extra' : !just.trim() ? 'Escribe la justificación' : null
+  const enUnidad = (lineaId, base, u) => {
+    if (u === 'unidades' || !ver) return `${fmt(base)}`
+    let t = 0
+    for (const x of ver.productos) {
+      const p = prods[x.producto_id]
+      if (!p || p.linea_id !== lineaId) continue
+      t += u === 'cajas' ? x.cantidad / p.unidades_por_comercial : u === 'toneladas' ? (x.cantidad * p.peso_kg_unidad) / 1000 : x.cantidad * p.costo_unitario
+    }
+    return u === 'costo' ? `$ ${fmt(t)}` : u === 'toneladas' ? `${(t < 10 ? fmt2 : fmt1)(t)} t` : `${fmt(t)} cajas`
+  }
   const bloqueoRol = estado !== 'decisiones' ? 'El plan se aprueba en la etapa de decisiones' : `Solo ${nombreRol('gerencia')}`
 
   return (
@@ -53,6 +67,9 @@ export default function Ciclo({ ciclo, accion, puede, nombreRol }) {
 
       <Card paso="Paso 6" titulo="Plan final" sub={ver ? `Versión ${ver.numero} (${ORIGEN[ver.origen]}) — ${ver.creado_en.replace('T', ' ')}` : 'Aún no hay versiones'}>
         {crp && <>
+          <div className="segmento" role="group" aria-label="Unidad de medida">
+            {UNIDADES.map(([k, t]) => <button key={k} className={unidad === k ? 'on' : ''} onClick={() => setUnidad(k)}>{t}</button>)}
+          </div>
           <div className="kpis">
             <div className="kpi"><span>Líneas en verde</span><b>{crp.resumen.lineas_factibles} / {crp.resumen.lineas_total}</b></div>
             <div className="kpi"><span>Decisión pendiente de validar</span><b>{fmt1(horas)} h extra</b></div>
@@ -62,11 +79,11 @@ export default function Ciclo({ ciclo, accion, puede, nombreRol }) {
             <thead><tr><th>Línea</th><th className="n">Necesidad final</th><th className="n">Saturación</th><th>Estado</th><th className="n">Horas extra</th></tr></thead>
             <tbody>{crp.lineas.map((r) => (
               <tr key={r.linea_id}><td>{r.nombre}{r.cede_a.length > 0 && <span className="muted"> · cede capacidad</span>}</td>
-                <td className="n">{fmt(r.necesidad)} {r.unidad}</td><td className="n">{pct(r.saturacion)}</td>
+                <td className="n">{unidad === 'unidades' ? `${fmt(r.necesidad)} ${r.unidad}` : enUnidad(r.linea_id, r.necesidad, unidad)}</td><td className="n">{pct(r.saturacion)}</td>
                 <td><EstadoPill estado={r.estado} /></td><td className="n">{r.horas_extra > 0 ? `${fmt1(r.horas_extra)} h` : '—'}</td></tr>))}</tbody></table></div>
         </>}
         {estado === 'oficial'
-          ? <Callout tono="teal" icono="🏁" titulo="Plan oficial aprobado."> Congelado. Queda listo para convertirse en órdenes provisionales de SAP, línea por línea (exportación en la fase 5).</Callout>
+          ? <Callout tono="teal" icono="🏁" titulo="Plan oficial aprobado."> Congelado. Queda listo para convertirse en órdenes provisionales de SAP, línea por línea: se generan en la pestaña «5 · Salida a SAP».</Callout>
           : <div className="aprobacion">
               <h3>Aprobación del plan oficial (Gerencia)</h3>
               {horas > 1e-9 && <label className="check"><input type="checkbox" checked={acepta} onChange={(e) => setAcepta(e.target.checked)} />

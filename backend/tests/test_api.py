@@ -162,3 +162,24 @@ def test_la_conexion_se_puede_usar_desde_otro_hilo(db_plantilla):
     t.start(); t.join()
     con.close()
     assert resultado == [1]
+
+
+def test_salida_a_sap_por_http(cli):
+    cid = _oficial(cli)
+    assert cli.post(f"/api/ciclo/{cid}/exportar/ordenes", headers=h(INV)).status_code == 403
+    r = cli.post(f"/api/ciclo/{cid}/exportar/ordenes", headers=h(CAP))
+    assert r.status_code == 200 and len(r.json()["archivos"]) == 2
+    assert cli.post(f"/api/ciclo/{cid}/exportar/ordenes", headers=h(CAP)).status_code == 409
+    a = r.json()["archivos"][0]
+    d = cli.get(f"/api/exportaciones/{a['id']}/descargar")
+    assert d.status_code == 200 and "attachment" in d.headers["content-disposition"] and d.content.startswith(b"\xef\xbb\xbfCENTRO;LINEA")
+    v = cli.get(f"/api/exportaciones/{a['id']}/vista").json()
+    assert v["lineas"][0].startswith("CENTRO;") and v["filas"] == a["filas"]
+    z = cli.get(f"/api/ciclo/{cid}/exportaciones/lote/{r.json()['lote']}.zip")
+    assert z.status_code == 200 and z.headers["content-type"] == "application/zip"
+    s = cli.get(f"/api/ciclo/{cid}/salida").json()
+    assert s["ordenes_exportadas"] and len(s["archivos"]) == 2
+    assert cli.post(f"/api/ciclo/{cid}/exportar/compras", headers=h(ANA)).status_code == 409         # nada aprobado aún
+    csv = cli.get("/api/auditoria.csv")
+    assert csv.status_code == 200 and b"exportar_ordenes" in csv.content
+    assert cli.get("/api/exportaciones/999/vista").status_code == 400

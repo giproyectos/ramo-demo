@@ -273,7 +273,23 @@ CREATE TABLE propuesta_ia (
     detalle_final   TEXT,                 -- JSON: lo que efectivamente se aprobó (o modificó)
     creado_en       TEXT NOT NULL,
     decidido_rol    TEXT,
-    decidido_en     TEXT
+    decidido_en     TEXT,
+    exportado_id    INTEGER REFERENCES exportacion_sap(id)
+);
+
+-- Archivos planos generados para SAP (se guarda el contenido exacto y su huella).
+CREATE TABLE exportacion_sap (
+    id              INTEGER PRIMARY KEY,
+    ciclo_id        INTEGER NOT NULL REFERENCES ciclo(id),
+    plan_version_id INTEGER NOT NULL REFERENCES plan_version(id),
+    lote            INTEGER NOT NULL,
+    tipo            TEXT NOT NULL CHECK (tipo IN ('ordenes_provisionales','compras','cancelaciones_oc','lead_times')),
+    archivo         TEXT NOT NULL,
+    filas           INTEGER NOT NULL,
+    sha256          TEXT NOT NULL,
+    contenido       TEXT NOT NULL,
+    rol             TEXT NOT NULL,
+    creado_en       TEXT NOT NULL
 );
 CREATE TABLE auditoria (
     id       INTEGER PRIMARY KEY,

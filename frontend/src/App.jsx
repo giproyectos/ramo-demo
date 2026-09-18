@@ -4,6 +4,7 @@ import Capacidad from './views/Capacidad.jsx'
 import Consolidacion from './views/Consolidacion.jsx'
 import Ciclo from './views/Ciclo.jsx'
 import MRP from './views/MRP.jsx'
+import Salida from './views/Salida.jsx'
 import Auditoria from './views/Auditoria.jsx'
 
 const TAB_INICIAL = {
@@ -17,6 +18,7 @@ const TABS = [
   ['mps', '2 · Consolidación (MPS)'],
   ['ciclo', '3 · Ciclo y plan'],
   ['mrp', '4 · MRP + IA'],
+  ['salida', '5 · Salida a SAP'],
   ['auditoria', 'Auditoría'],
 ]
 const ESTADO_TXT = { capacidad: 'Capacidad', compartido: 'Compartido (mié)', decisiones: 'Decisiones (jue)', oficial: 'Oficial (vie)' }
@@ -108,7 +110,8 @@ export default function App() {
         {tab === 'mps' && <Consolidacion {...props} />}
         {tab === 'ciclo' && <Ciclo {...props} />}
         {tab === 'mrp' && <MRP {...props} />}
-        {tab === 'auditoria' && <Auditoria ciclo={ciclo} />}
+        {tab === 'salida' && <Salida {...props} />}
+        {tab === 'auditoria' && <Auditoria ciclo={ciclo} nombreRol={nombreRol} />}
       </main>
     </>
   )

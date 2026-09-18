@@ -1,62 +1,63 @@
-# Ramo — Demo MPS/CRP → MRP + capa IA
+# Ramo — Demo MPS/CRP → MRP con capa IA
 
-Demo funcional (no mockup) del ciclo semanal de planeación: **CRP ↔ MPS → MRP con capa IA**,
-sobre un dataset **100 % sintético** generado con semilla fija.
+Demo **funcional** (no un mockup) del ciclo semanal de planeación desde el MPS: **CRP ↔ MPS → aprobación → MRP con IA →
+salida a SAP**, sobre un dataset **100 % sintético** generado con semilla fija. Cada cifra en pantalla sale de un cálculo real
+sobre una base de datos, con estado persistente, escenarios ejecutables y trazabilidad.
 
-- Alcance: desde MPS en adelante. Demanda/SOP y DRP entran como datos de entrada.
-- Stack: Python (FastAPI) + SQLite + React/Vite.
-- Roles (sin nombres propios): Planeador de Capacidad, Planeador de Inventarios/MPS,
-  Analista de Planeación, Gerencia, Plantas.
+- **Alcance:** desde MPS en adelante. Demanda/SOP y DRP entran como datos ya calculados.
+- **Roles (sin nombres propios):** Planeador de Capacidad, Planeador de Inventarios / MPS, Analista de Planeación, Gerencia.
+- **Stack:** Python (FastAPI) + SQLite + React/Vite. Motor de cálculo en Python puro, sin dependencias de IA externas.
+- **Guion para presentarlo:** [docs/GUION_DEMO.md](docs/GUION_DEMO.md).
+
+## Levantar el demo
+```powershell
+./run.ps1            # crea el entorno, genera los datos, compila el front y sirve todo en http://localhost:8000
+```
+Desarrollo con recarga: `uvicorn backend.app:app --reload` y, en `frontend/`, `npm run dev` (http://localhost:5173).
+El botón **Reiniciar demo** (o `POST /api/demo/reiniciar`) regenera los datos y borra el ciclo.
+
+## Tests
+```powershell
+.venv\Scripts\python -m pytest backend/tests -q      # 80 tests
+```
+Reproducen las cifras de referencia: Barra Rellena 137 % → 107 % conjunto → 230.000 u de excedente ≈ 8,5 h extra;
+Ponqué Individual 3.400.000 → 3.280.000 tras el ajuste; azúcar con 4 días de cobertura y lead time real de 15 días.
+
+## Arquitectura
+```
+backend/
+  synth/     generador reproducible del dataset (semilla 42) y esquema SQLite
+  engine/    crp · mps · ciclo (roles, versiones, auditoría) · mrp · ia · propuestas · sap_export
+  app.py     API FastAPI (el rol viaja en la cabecera X-Rol; permisos y estados los aplica el motor)
+  tests/     pytest
+frontend/    React + Vite: Capacidad · Consolidación · Ciclo y plan · MRP + IA · Salida a SAP · Auditoría
+docs/        guion de demo
+```
+
+### Flujo
+1. **Capacidad (CRP):** necesidad por línea en tres flujos (regular, canal directo y exportación) → capacidad = ritmo × horas
+   disponibles → saturación. Las líneas que comparten tripulación ceden holgura entre sí; el excedente se traduce en horas extra.
+2. **Consolidación (MPS):** ajustes de distribución con motivo y justificación; solo los aprobados entran, y la necesidad final
+   vuelve al CRP (ciclo de ida y vuelta, con versiones comparables).
+3. **Plan oficial:** Gerencia aprueba aceptando explícitamente las horas extra.
+4. **MRP con IA:** SAP explota el plan con lead time fijo, stock de seguridad estático y todas las OC abiertas. La IA lo corrige
+   con lead times dinámicos, variabilidad de demanda y de proveedor, detección de anomalías, priorización, cuota reguladora y
+   consolidación de pedidos. El Analista aprueba, modifica o rechaza con justificación.
+5. **Salida a SAP:** CSV de órdenes provisionales por planta y de compras, cancelaciones de OC y lead times, solo con lo aprobado,
+   con huella SHA-256 y auditoría.
+
+## Límites
+No se conecta a SAP; no incluye Demanda ni DRP; sin autenticación real (selector de rol); cambios de formato entre SKUs sin
+modelar; el formato LSMW es genérico. Detalle y preguntas abiertas en el guion.
 
 ## Estado por fases
 | Fase | Contenido | Estado |
 |---|---|---|
 | 0 | Repo y estructura | listo |
-| 1 | Dataset sintético + esquema SQLite | listo (17 tests) |
-| 2 | Motor CRP + MPS + bucle | listo (37+1 tests) |
-| 3 | API + vistas núcleo | listo (44 tests + recorrido en navegador) |
-| 4 | MRP + capa IA | listo (71 tests + recorrido en navegador) |
-| 5 | Exportación SAP, auditoría, guion | pendiente |
+| 1 | Dataset sintético + esquema SQLite | listo |
+| 2 | Motor CRP + MPS + bucle | listo |
+| 3 | API + vistas núcleo | listo |
+| 4 | MRP + capa IA | listo |
+| 5 | Salida a SAP, auditoría, guion | listo |
 
 > Todos los datos son sintéticos; ninguna cifra corresponde a información real del cliente.
-
-## Motor (Fase 2)
-- `backend/engine/crp.py`: capacidad por línea, tripulación compartida, horas extra y what-if (funciones puras).
-- `backend/engine/mps.py`: ajustes de distribución y consolidación.
-- `backend/engine/ciclo.py`: ciclo semanal (capacidad → compartido → decisiones → oficial), roles, versiones y auditoría.
-- Regla de tripulación: las líneas del grupo ceden su holgura a las que se pasan; el excedente restante se convierte en horas extra al ritmo de la línea con más holgura.
-
-## API y front (Fase 3)
-- `backend/app.py` (FastAPI): el rol va en la cabecera `X-Rol`; permisos y estados los aplica el motor
-  (403 sin permiso, 409 estado incorrecto, 400 validación). `/api/simular` es el what-if de solo lectura.
-- `frontend/` (React + Vite): selector de rol, Capacidad (CRP + simulador), Consolidación (MPS), Ciclo y plan, Auditoría.
-- Sin login: el selector de rol basta para el demo; el servidor igual rechaza acciones no permitidas.
-
-## MRP + capa IA (Fase 4)
-- `backend/engine/mrp.py`: explosión del plan a materiales (incluye premezclas), proyección diaria a 28 días y propuesta de
-  reposición tipo SAP (lead time fijo, stock de seguridad estático, todas las OC abiertas contadas).
-- `backend/engine/ia.py`: refinamiento estadístico y explicable, sin API externa: lead times dinámicos, stock de seguridad
-  dinámico (variabilidad de demanda y del proveedor), anomalías (OC/SolPed duplicadas u obsoletas, movimientos repetidos),
-  priorización crítico/normal/puede esperar, cuota reguladora entre proveedores y consolidación de pedidos.
-- `backend/engine/propuestas.py`: SAP propone → IA refina → el Analista aprueba, modifica o rechaza con justificación.
-  Las que rompen la cuota exigen justificación; las calculadas sobre una simulación no se pueden decidir.
-- Modos: **plan oficial** (versión aprobada por Gerencia) o **simulación** (última versión o necesidad sin CRP).
-- La vista «4 · MRP + IA» permite conmutar la unidad (base, toneladas, costo).
-
-### Levantar el demo
-```powershell
-./run.ps1            # crea venv, genera datos, compila el front y sirve todo en http://localhost:8000
-```
-Desarrollo con recarga: `uvicorn backend.app:app --reload` y, en `frontend/`, `npm run dev` (http://localhost:5173).
-Botón «Reiniciar demo» (o `POST /api/demo/reiniciar`) regenera los datos y borra el ciclo.
-
-## Uso rápido (Fase 1)
-```bash
-python -m venv .venv
-.venv/Scripts/python -m pip install pytest
-python -m backend.synth.generate          # crea ramo.db (semilla 42)
-.venv/Scripts/python -m pytest backend/tests -q
-```
-El dataset es reproducible: misma semilla, mismos datos. `ramo.db` no se versiona.
-La semana semilla (semana 1 del horizonte, lunes 2026-09-21) reproduce el escenario de referencia:
-Barra Rellena 137 % → 107 % conjunto con Mini Ponqué → 230.000 u de excedente ≈ 8,5 h extra.

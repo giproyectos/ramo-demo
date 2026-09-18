@@ -167,3 +167,14 @@ input:focus, select:focus { outline: 2px solid var(--teal-br); border-color: var
 @media (max-width: 720px) { .dos-col, .lado-a-lado { grid-template-columns: 1fr; } }
 
 .num { font-style: normal; }
+
+/* ── Salida a SAP y auditoría ── */
+.salida-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.salida-caja { border: 1px solid var(--border); border-radius: 12px; padding: 4px 16px 16px; background: #fcfbfa; }
+.lote { margin-top: 14px; } .lote-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.enlace { text-decoration: none; display: inline-block; }
+.mono, pre { font-family: ui-monospace, Consolas, monospace; font-size: 12px; }
+.vista-archivo pre { background: #0f1420; color: #d8e0f0; padding: 12px 14px; border-radius: 10px; overflow-x: auto; margin: 0; white-space: pre; }
+.acc a, .link { color: var(--teal); font-weight: 700; font-size: 12.5px; text-decoration: none; background: none; border: 0; cursor: pointer; padding: 0; font-family: inherit; }
+.filtros { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
+@media (max-width: 720px) { .salida-grid { grid-template-columns: 1fr; } }

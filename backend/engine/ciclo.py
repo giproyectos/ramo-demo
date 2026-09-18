@@ -34,6 +34,8 @@ PERMISOS = {
     "aprobar_plan": {GERENCIA},
     "generar_propuestas": {ANALISTA},
     "decidir_propuesta": {ANALISTA},
+    "exportar_ordenes": {CAPACIDAD},
+    "exportar_compras": {ANALISTA},
 }
 ESTADOS_PERMITIDOS = {
     "ejecutar_crp": {"capacidad", "compartido", "decisiones"},

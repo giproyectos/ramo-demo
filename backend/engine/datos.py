@@ -39,7 +39,8 @@ def cargar_necesidad_productos(con: sqlite3.Connection, semana_id: int) -> list[
     """Necesidad por producto y flujo (modelo DRP + origen de pedidos MTO)."""
     marcas = ",".join("?" * len(FUENTES_VALIDAS))
     filas = con.execute(f"""
-        SELECT p.id AS producto_id, p.sku, p.nombre, p.linea_id,
+        SELECT p.id AS producto_id, p.sku, p.nombre, p.linea_id, p.peso_kg_unidad, p.unidades_por_comercial,
+               p.costo_unitario,
                COALESCE(SUM(CASE WHEN n.flujo='regular_cedi' THEN n.cantidad END), 0) AS regular,
                COALESCE(SUM(CASE WHEN n.flujo='canal_directo_mto' THEN n.cantidad END), 0) AS canal_directo,
                COALESCE(SUM(CASE WHEN n.flujo='exportacion_mto' THEN n.cantidad END), 0) AS exportacion
