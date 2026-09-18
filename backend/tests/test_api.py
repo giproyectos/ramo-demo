@@ -105,3 +105,60 @@ def test_reiniciar_demo_deja_todo_en_el_punto_de_partida(cli):
     assert cli.get("/api/ciclo/actual").json()["ciclo_id"] is not None
     assert cli.post("/api/demo/reiniciar", headers=h(CAP)).status_code == 200
     assert cli.get("/api/ciclo/actual").json()["ciclo_id"] is None
+
+
+ANA = cy.ANALISTA
+
+
+def _oficial(cli):
+    cid = cli.post("/api/ciclo", headers=h(CAP)).json()["ciclo_id"]
+    cli.post(f"/api/ciclo/{cid}/crp", json={}, headers=h(CAP))
+    cli.post(f"/api/ciclo/{cid}/compartir", headers=h(CAP))
+    cli.post(f"/api/ciclo/{cid}/abrir-decisiones", headers=h(INV))
+    r = cli.post(f"/api/ciclo/{cid}/aprobar", headers=h(GER), json={"justificacion": "ok", "acepta_horas_extra": True})
+    assert r.status_code == 200
+    return cid
+
+
+def test_mrp_oficial_exige_plan_y_simulacion_funciona(cli):
+    r = cli.get("/api/mrp", params={"modo": "oficial"})
+    assert r.status_code == 409 and "oficial" in r.json()["detail"]
+    s = cli.get("/api/mrp", params={"modo": "simulacion"}).json()
+    assert s["meta"]["es_oficial"] is False and len(s["materiales"]) == 29
+    assert cli.get("/api/mrp", params={"modo": "otro"}).status_code == 409
+
+
+def test_flujo_de_propuestas_ia_por_http(cli):
+    cid = _oficial(cli)
+    of = cli.get("/api/mrp", params={"modo": "oficial"}).json()
+    assert of["meta"]["es_oficial"] and of["resumen"]["quiebres_ocultos_por_sap"]
+    assert cli.post(f"/api/ciclo/{cid}/ia/generar", json={"modo": "oficial"}, headers=h(CAP)).status_code == 403
+    g = cli.post(f"/api/ciclo/{cid}/ia/generar", json={"modo": "oficial"}, headers=h(ANA))
+    assert g.status_code == 200 and g.json()["nuevas"] > 20
+    props = cli.get(f"/api/ciclo/{cid}/ia/propuestas").json()
+    az = next(p for p in props if p["tipo"] == "orden_reposicion" and p["detalle"]["material"]["codigo"] == "MP-002")
+    r = cli.post(f"/api/ciclo/{cid}/ia/propuestas/{az['id']}/decision", headers=h(ANA), json={"decision": "aprobar"})
+    assert r.status_code == 400 and "cuota" in r.json()["detail"]
+    r = cli.post(f"/api/ciclo/{cid}/ia/propuestas/{az['id']}/decision", headers=h(ANA),
+                 json={"decision": "aprobar", "justificacion": "El proveedor principal no llega a tiempo"})
+    assert r.status_code == 200 and r.json()["cuota_rota"] is True
+    assert cli.post(f"/api/ciclo/{cid}/ia/propuestas/{az['id']}/decision", headers=h(ANA),
+                    json={"decision": "rechazar", "justificacion": "x"}).status_code == 409
+    otra = next(p for p in props if p["tipo"] == "orden_reposicion" and p["estado"] == "pendiente" and not p["detalle"]["ia"]["excepcion_cuota"])
+    r = cli.post(f"/api/ciclo/{cid}/ia/propuestas/{otra['id']}/decision", headers=h(ANA),
+                 json={"decision": "modificar", "justificacion": "Compra parcial", "cantidad": otra["detalle"]["ia"]["orden"]["cantidad"] + 500})
+    assert r.status_code == 200 and r.json()["estado"] == "modificada"
+    assert cli.post(f"/api/ciclo/{cid}/ia/propuestas/{otra['id']}/decision", headers=h(INV),
+                    json={"decision": "aprobar"}).status_code == 403
+
+
+def test_la_conexion_se_puede_usar_desde_otro_hilo(db_plantilla):
+    """Regresión: FastAPI crea la conexión y ejecuta el endpoint en hilos distintos."""
+    import threading
+    from backend.engine import datos
+    con = datos.conectar(db_plantilla)
+    resultado = []
+    t = threading.Thread(target=lambda: resultado.append(datos.semana_semilla(con)))
+    t.start(); t.join()
+    con.close()
+    assert resultado == [1]

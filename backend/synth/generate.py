@@ -456,8 +456,9 @@ def generar(db_path: Path, seed: int = 42) -> dict:
 
     for cod, lista in mat_prov.items():
         for pv, cuota, lt in lista:
-            if cod == "MP-002" and pv == PV_INCUMPLIDO:
-                nueva_oc(cod, pv, 6000.0, HOY, HOY + timedelta(days=6))   # llega tarde: el relato del quiebre
+            if cod == "MP-002":                                       # relato de la demo: solo la OC del proveedor incumplido
+                if pv == PV_INCUMPLIDO:
+                    nueva_oc(cod, pv, 6000.0, HOY, HOY + timedelta(days=6))   # llega tarde
                 continue
             if rng.random() < .55 or (cod, pv) == ("MP-018", mat_prov["MP-018"][0][0]):
                 mult = 25.0

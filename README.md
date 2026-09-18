@@ -15,7 +15,7 @@ sobre un dataset **100 % sintético** generado con semilla fija.
 | 1 | Dataset sintético + esquema SQLite | listo (17 tests) |
 | 2 | Motor CRP + MPS + bucle | listo (37+1 tests) |
 | 3 | API + vistas núcleo | listo (44 tests + recorrido en navegador) |
-| 4 | MRP + capa IA | pendiente |
+| 4 | MRP + capa IA | listo (71 tests + recorrido en navegador) |
 | 5 | Exportación SAP, auditoría, guion | pendiente |
 
 > Todos los datos son sintéticos; ninguna cifra corresponde a información real del cliente.
@@ -31,6 +31,17 @@ sobre un dataset **100 % sintético** generado con semilla fija.
   (403 sin permiso, 409 estado incorrecto, 400 validación). `/api/simular` es el what-if de solo lectura.
 - `frontend/` (React + Vite): selector de rol, Capacidad (CRP + simulador), Consolidación (MPS), Ciclo y plan, Auditoría.
 - Sin login: el selector de rol basta para el demo; el servidor igual rechaza acciones no permitidas.
+
+## MRP + capa IA (Fase 4)
+- `backend/engine/mrp.py`: explosión del plan a materiales (incluye premezclas), proyección diaria a 28 días y propuesta de
+  reposición tipo SAP (lead time fijo, stock de seguridad estático, todas las OC abiertas contadas).
+- `backend/engine/ia.py`: refinamiento estadístico y explicable, sin API externa: lead times dinámicos, stock de seguridad
+  dinámico (variabilidad de demanda y del proveedor), anomalías (OC/SolPed duplicadas u obsoletas, movimientos repetidos),
+  priorización crítico/normal/puede esperar, cuota reguladora entre proveedores y consolidación de pedidos.
+- `backend/engine/propuestas.py`: SAP propone → IA refina → el Analista aprueba, modifica o rechaza con justificación.
+  Las que rompen la cuota exigen justificación; las calculadas sobre una simulación no se pueden decidir.
+- Modos: **plan oficial** (versión aprobada por Gerencia) o **simulación** (última versión o necesidad sin CRP).
+- La vista «4 · MRP + IA» permite conmutar la unidad (base, toneladas, costo).
 
 ### Levantar el demo
 ```powershell

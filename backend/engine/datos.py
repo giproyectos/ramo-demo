@@ -11,7 +11,8 @@ FUENTES_VALIDAS = ("modelo_drp", "origen_pedido")     # nunca el archivo estánd
 
 
 def conectar(ruta: Path | str | None = None) -> sqlite3.Connection:
-    con = sqlite3.connect(ruta or DB_POR_DEFECTO)
+    # FastAPI resuelve la dependencia y el endpoint en hilos distintos; cada petición usa su propia conexión
+    con = sqlite3.connect(ruta or DB_POR_DEFECTO, check_same_thread=False)
     con.row_factory = sqlite3.Row
     con.execute("PRAGMA foreign_keys = ON")
     return con

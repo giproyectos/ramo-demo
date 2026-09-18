@@ -11,7 +11,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from backend.engine import ciclo as cy
-from backend.engine import datos, mps
+from backend.engine import datos, ia, mps, mrp, propuestas
 from backend.engine.crp import Escenario
 from backend.synth.generate import generar
 
@@ -54,6 +54,11 @@ async def _estado(_, e):
 @app.exception_handler(cy.CicloError)
 async def _ciclo(_, e):
     return JSONResponse({"detail": str(e), "tipo": "validacion"}, status_code=400)
+
+
+@app.exception_handler(mrp.MrpError)
+async def _mrp(_, e):
+    return JSONResponse({"detail": str(e), "tipo": "estado"}, status_code=409)
 
 
 @app.exception_handler(ValueError)
@@ -102,6 +107,17 @@ class AprobarIn(BaseModel):
 
 class NotaIn(BaseModel):
     nota: str | None = None
+
+
+class GenerarIn(BaseModel):
+    modo: str = "oficial"
+
+
+class DecisionPropuestaIn(BaseModel):
+    decision: str
+    justificacion: str = ""
+    cantidad: float | None = None
+    proveedor_id: int | None = None
 
 
 # ───────────────────────── Meta ─────────────────────────
@@ -230,6 +246,28 @@ def comparar(ciclo_id: int, a: int = Query(...), b: int = Query(...), con=Depend
 @app.get("/api/auditoria")
 def auditoria(con=Depends(get_con)):
     return [dict(r) for r in con.execute("SELECT * FROM auditoria ORDER BY id DESC")]
+
+
+# ───────────────────────── MRP y capa IA ─────────────────────────
+@app.get("/api/mrp")
+def mrp_run(modo: str = "oficial", con=Depends(get_con)):
+    return ia.correr(con, modo)
+
+
+@app.post("/api/ciclo/{ciclo_id}/ia/generar")
+def ia_generar(ciclo_id: int, body: GenerarIn, con=Depends(get_con), rol: str = Depends(get_rol)):
+    return propuestas.generar_propuestas(con, ciclo_id, rol, body.modo)
+
+
+@app.get("/api/ciclo/{ciclo_id}/ia/propuestas")
+def ia_propuestas(ciclo_id: int, con=Depends(get_con)):
+    return propuestas.listar_propuestas(con, ciclo_id)
+
+
+@app.post("/api/ciclo/{ciclo_id}/ia/propuestas/{propuesta_id}/decision")
+def ia_decidir(ciclo_id: int, propuesta_id: int, body: DecisionPropuestaIn, con=Depends(get_con), rol: str = Depends(get_rol)):
+    cambios = {k: v for k, v in (("cantidad", body.cantidad), ("proveedor_id", body.proveedor_id)) if v is not None}
+    return propuestas.decidir_propuesta(con, ciclo_id, rol, propuesta_id, body.decision, body.justificacion, cambios)
 
 
 # ───────────────────────── Front compilado (opcional) ─────────────────────────

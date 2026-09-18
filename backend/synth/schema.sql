@@ -261,14 +261,19 @@ CREATE TABLE ajuste_distribucion (
     decision_justificacion TEXT
 );
 CREATE TABLE propuesta_ia (
-    id          INTEGER PRIMARY KEY,
-    ciclo_id    INTEGER NOT NULL REFERENCES ciclo(id),
-    tipo        TEXT NOT NULL,
-    material_id INTEGER REFERENCES material(id),
-    detalle     TEXT NOT NULL,        -- JSON
-    estado      TEXT NOT NULL,
-    justificacion TEXT,
-    creado_en   TEXT NOT NULL
+    id              INTEGER PRIMARY KEY,
+    ciclo_id        INTEGER NOT NULL REFERENCES ciclo(id),
+    plan_version_id INTEGER NOT NULL REFERENCES plan_version(id),
+    tipo            TEXT NOT NULL CHECK (tipo IN ('orden_reposicion','cancelar_oc','actualizar_lead_time')),
+    material_id     INTEGER REFERENCES material(id),
+    prioridad       TEXT NOT NULL CHECK (prioridad IN ('critico','normal','puede_esperar')),
+    detalle         TEXT NOT NULL,        -- JSON: lo que propone SAP y lo que propone la IA
+    estado          TEXT NOT NULL CHECK (estado IN ('pendiente','aprobada','modificada','rechazada')),
+    justificacion   TEXT,
+    detalle_final   TEXT,                 -- JSON: lo que efectivamente se aprobó (o modificó)
+    creado_en       TEXT NOT NULL,
+    decidido_rol    TEXT,
+    decidido_en     TEXT
 );
 CREATE TABLE auditoria (
     id       INTEGER PRIMARY KEY,

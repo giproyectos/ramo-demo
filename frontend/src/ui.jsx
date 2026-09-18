@@ -4,6 +4,8 @@ const nf = new Intl.NumberFormat('es-CO', { maximumFractionDigits: 0 })
 const nf1 = new Intl.NumberFormat('es-CO', { maximumFractionDigits: 1 })
 export const fmt = (n) => nf.format(Math.round(n ?? 0))
 export const fmt1 = (n) => nf1.format(n ?? 0)
+const nf2 = new Intl.NumberFormat('es-CO', { maximumFractionDigits: 2 })
+export const fmt2 = (n) => nf2.format(n ?? 0)
 export const pct = (s) => `${Math.round((s ?? 0) * 100)}%`
 export const signo = (n) => (n > 0 ? `+${fmt(n)}` : fmt(n))
 

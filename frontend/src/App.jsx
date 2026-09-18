@@ -3,18 +3,20 @@ import { api, getRol, setRol } from './api.js'
 import Capacidad from './views/Capacidad.jsx'
 import Consolidacion from './views/Consolidacion.jsx'
 import Ciclo from './views/Ciclo.jsx'
+import MRP from './views/MRP.jsx'
 import Auditoria from './views/Auditoria.jsx'
 
 const TAB_INICIAL = {
   planeador_capacidad: 'capacidad',
   planeador_inventarios: 'mps',
-  analista_planeacion: 'ciclo',
+  analista_planeacion: 'mrp',
   gerencia: 'ciclo',
 }
 const TABS = [
   ['capacidad', '1 · Capacidad (CRP)'],
   ['mps', '2 · Consolidación (MPS)'],
   ['ciclo', '3 · Ciclo y plan'],
+  ['mrp', '4 · MRP + IA'],
   ['auditoria', 'Auditoría'],
 ]
 const ESTADO_TXT = { capacidad: 'Capacidad', compartido: 'Compartido (mié)', decisiones: 'Decisiones (jue)', oficial: 'Oficial (vie)' }
@@ -105,6 +107,7 @@ export default function App() {
         {tab === 'capacidad' && <Capacidad {...props} />}
         {tab === 'mps' && <Consolidacion {...props} />}
         {tab === 'ciclo' && <Ciclo {...props} />}
+        {tab === 'mrp' && <MRP {...props} />}
         {tab === 'auditoria' && <Auditoria ciclo={ciclo} />}
       </main>
     </>

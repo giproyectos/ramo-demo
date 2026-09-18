@@ -32,6 +32,8 @@ PERMISOS = {
     "consolidar": {INVENTARIOS},
     "abrir_decisiones": {INVENTARIOS, GERENCIA},
     "aprobar_plan": {GERENCIA},
+    "generar_propuestas": {ANALISTA},
+    "decidir_propuesta": {ANALISTA},
 }
 ESTADOS_PERMITIDOS = {
     "ejecutar_crp": {"capacidad", "compartido", "decisiones"},
