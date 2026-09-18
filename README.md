@@ -13,12 +13,18 @@ sobre un dataset **100 % sintético** generado con semilla fija.
 |---|---|---|
 | 0 | Repo y estructura | listo |
 | 1 | Dataset sintético + esquema SQLite | listo (17 tests) |
-| 2 | Motor CRP + MPS + bucle | pendiente |
+| 2 | Motor CRP + MPS + bucle | listo (37+1 tests) |
 | 3 | API + vistas núcleo | pendiente |
 | 4 | MRP + capa IA | pendiente |
 | 5 | Exportación SAP, auditoría, guion | pendiente |
 
 > Todos los datos son sintéticos; ninguna cifra corresponde a información real del cliente.
+
+## Motor (Fase 2)
+- `backend/engine/crp.py`: capacidad por línea, tripulación compartida, horas extra y what-if (funciones puras).
+- `backend/engine/mps.py`: ajustes de distribución y consolidación.
+- `backend/engine/ciclo.py`: ciclo semanal (capacidad → compartido → decisiones → oficial), roles, versiones y auditoría.
+- Regla de tripulación: las líneas del grupo ceden su holgura a las que se pasan; el excedente restante se convierte en horas extra al ritmo de la línea con más holgura.
 
 ## Uso rápido (Fase 1)
 ```bash

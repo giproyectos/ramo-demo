@@ -217,7 +217,7 @@ CREATE TABLE orden_produccion (
 CREATE TABLE ciclo (
     id        INTEGER PRIMARY KEY,
     semana_id INTEGER NOT NULL REFERENCES semana(id),
-    estado    TEXT NOT NULL,
+    estado    TEXT NOT NULL CHECK (estado IN ('capacidad','compartido','decisiones','oficial')),
     creado_en TEXT NOT NULL
 );
 CREATE TABLE plan_version (
@@ -227,7 +227,15 @@ CREATE TABLE plan_version (
     origen      TEXT NOT NULL,
     rol         TEXT NOT NULL,
     nota        TEXT,
-    creado_en   TEXT NOT NULL
+    detalle     TEXT NOT NULL,        -- JSON: escenario, ajustes aplicados, resultado completo del CRP
+    creado_en   TEXT NOT NULL,
+    UNIQUE (ciclo_id, numero)
+);
+CREATE TABLE plan_version_producto (
+    plan_version_id INTEGER NOT NULL REFERENCES plan_version(id),
+    producto_id     INTEGER NOT NULL REFERENCES producto(id),
+    cantidad        REAL NOT NULL,      -- necesidad final del producto en esa versión
+    PRIMARY KEY (plan_version_id, producto_id)
 );
 CREATE TABLE plan_version_linea (
     plan_version_id INTEGER NOT NULL REFERENCES plan_version(id),
@@ -246,8 +254,11 @@ CREATE TABLE ajuste_distribucion (
     motivo       TEXT NOT NULL,
     justificacion TEXT NOT NULL,
     rol          TEXT NOT NULL,
-    estado       TEXT NOT NULL,
-    creado_en    TEXT NOT NULL
+    estado       TEXT NOT NULL CHECK (estado IN ('propuesto','aprobado','rechazado')),
+    creado_en    TEXT NOT NULL,
+    decidido_rol TEXT,
+    decidido_en  TEXT,
+    decision_justificacion TEXT
 );
 CREATE TABLE propuesta_ia (
     id          INTEGER PRIMARY KEY,
